@@ -1,17 +1,18 @@
 use crate::permit::Permit;
 use cosmwasm_std::{Api, Binary, CanonicalAddr, HumanAddr, StdResult, Uint128};
 use ripemd160::{Digest, Ripemd160};
+use schemars::JsonSchema;
 use secret_toolkit::crypto::sha_256;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct PermitSignature {
     pub pub_key: PubKey,
     pub signature: Binary,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct PubKey {
     /// ignored, but must be "tendermint/PubKeySecp256k1" otherwise the verification will fail
@@ -44,7 +45,7 @@ impl PubKeyValue {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct TxMsg<T> {
     pub r#type: String,
@@ -61,7 +62,7 @@ impl<T: Clone + Serialize> TxMsg<T> {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SignedTx<T> {
     /// ignored
@@ -92,7 +93,7 @@ impl<T: Clone + Serialize> SignedTx<T> {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Fee {
     pub amount: Vec<Coin>,
@@ -109,7 +110,7 @@ impl Default for Fee {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Coin {
     pub amount: Uint128,

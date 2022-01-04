@@ -1,6 +1,7 @@
 use crate::transaction::{PermitSignature, PubKeyValue, SignedTx, TxMsg};
 use bech32::FromBase32;
 use cosmwasm_std::{to_binary, Binary, CanonicalAddr, StdError, StdResult};
+use schemars::JsonSchema;
 use secp256k1::Secp256k1;
 use secret_toolkit::crypto::sha_256;
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,7 @@ use serde::{Deserialize, Serialize};
 // Signature idea taken from https://github.com/scrtlabs/secret-toolkit/blob/token-permits/packages/permit/src/funcs.rs
 
 /// Where the information will be stored
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Permit<T: Clone + Serialize> {
     pub params: T,
