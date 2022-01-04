@@ -1,0 +1,17 @@
+[package]
+name = "flexible_permits"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cosmwasm-std = { git = "https://github.com/enigmampc/SecretNetwork", tag = "v1.0.4-debug-print" }
+cosmwasm-storage = { git = "https://github.com/enigmampc/SecretNetwork", tag = "v1.0.4-debug-print" }
+secret-toolkit = { git = "https://github.com/enigmampc/secret-toolkit", branch = "debug-print"}
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+snafu = { version = "0.6.3" }
+remain = "0.2.2"
+ripemd160 = "0.9.1"
+secp256k1 = "0.20.3"
+bech32 = "0.8.1"
