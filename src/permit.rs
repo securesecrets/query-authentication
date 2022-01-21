@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Permit<T: Clone + Serialize> {
-    pub params: Option<T>,
+    pub params: T,
     pub signature: PermitSignature,
     pub account_number: Option<Uint128>,
     pub chain_id: Option<String>,
@@ -117,10 +117,10 @@ mod signature_tests {
     #[test]
     fn test_signed_tx() {
         let permit = TestPermit {
-            params: Some(TestPermitMsg {
+            params: TestPermitMsg {
                 address: ADDRESS.to_string(),
                 some_number: Uint128(10),
-            }),
+            },
             chain_id: Some("pulsar-1".to_string()),
             sequence: None,
             signature: PermitSignature {

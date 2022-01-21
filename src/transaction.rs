@@ -86,10 +86,7 @@ impl<T: Clone + Serialize> SignedTx<T> {
             chain_id: permit.chain_id.clone().unwrap_or("secret-4".to_string()),
             fee: Default::default(),
             memo: permit.memo.clone().unwrap_or(String::new()),
-            msgs: match permit.params.clone() {
-                None => vec![],
-                Some(msg) => vec![TxMsg::new(msg, msg_type)]
-            },
+            msgs: vec![TxMsg::new(permit.params.clone(), msg_type)],
             sequence: Uint128::zero(),
         }
     }
