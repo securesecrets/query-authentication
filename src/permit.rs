@@ -1,6 +1,6 @@
 use crate::transaction::{PermitSignature, PubKeyValue, SignedTx, TxMsg};
 use bech32::FromBase32;
-use cosmwasm_std::{to_binary, Binary, CanonicalAddr, StdError, StdResult};
+use cosmwasm_std::{to_binary, Binary, CanonicalAddr, StdError, StdResult, Uint128};
 use schemars::JsonSchema;
 use secp256k1::Secp256k1;
 use secret_toolkit::crypto::sha_256;
@@ -14,9 +14,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Permit<T: Clone + Serialize> {
-    pub params: T,
-    pub chain_id: Option<String>,
+    pub params: Option<T>,
     pub signature: PermitSignature,
+    pub account_number: Option<Uint128>,
+    pub chain_id: Option<String>,
+    pub sequence: Option<Uint128>,
+    pub memo: Option<String>,
 }
 
 pub fn bech32_to_canonical(addr: &str) -> CanonicalAddr {
@@ -25,13 +28,13 @@ pub fn bech32_to_canonical(addr: &str) -> CanonicalAddr {
 }
 
 impl<T: Clone + Serialize> Permit<T> {
-    pub fn create_signed_tx(&self) -> SignedTx<T> {
-        SignedTx::from_msg(TxMsg::from_permit(self), self.chain_id.clone())
+    pub fn create_signed_tx(&self, msg_type: Option<String>) -> SignedTx<T> {
+        SignedTx::from_permit(&self, msg_type)
     }
 
     /// Returns the permit signer
-    pub fn validate(&self) -> StdResult<PubKeyValue> {
-        Permit::validate_signed_tx(&self.signature, &self.create_signed_tx())
+    pub fn validate(&self, msg_type: Option<String>) -> StdResult<PubKeyValue> {
+        Permit::validate_signed_tx(&self.signature, &self.create_signed_tx(msg_type))
     }
 
     pub fn validate_signed_tx(signature: &PermitSignature, signed_tx: &SignedTx<T>) -> StdResult<PubKeyValue> {
@@ -114,18 +117,21 @@ mod signature_tests {
     #[test]
     fn test_signed_tx() {
         let permit = TestPermit {
-            params: TestPermitMsg {
+            params: Some(TestPermitMsg {
                 address: ADDRESS.to_string(),
                 some_number: Uint128(10),
-            },
+            }),
             chain_id: Some("pulsar-1".to_string()),
+            sequence: None,
             signature: PermitSignature {
                 pub_key: PubKey::new(Binary::from_base64(PUBKEY).unwrap()),
                 signature: Binary::from_base64(SIGNED_TX).unwrap(),
             },
+            account_number: None,
+            memo: None
         };
 
-        let addr = permit.validate().unwrap();
+        let addr = permit.validate(None).unwrap();
         assert_eq!(addr.as_canonical(), bech32_to_canonical(ADDRESS));
     }
 }

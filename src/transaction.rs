@@ -53,10 +53,10 @@ pub struct TxMsg<T> {
 }
 
 impl<T: Clone + Serialize> TxMsg<T> {
-    pub fn from_permit(permit: &Permit<T>) -> Self {
+    pub fn new(params: T, msg_type: Option<String>) -> Self {
         Self {
-            r#type: "signature_proof".to_string(),
-            value: permit.params.clone(),
+            r#type: msg_type.unwrap_or("signature_proof".to_string()),
+            value: params.clone(),
         }
     }
 }
@@ -80,26 +80,15 @@ pub struct SignedTx<T> {
 }
 
 impl<T: Clone + Serialize> SignedTx<T> {
-    pub fn from_msg(item: TxMsg<T>, chain_id: Option<String>) -> Self {
+    pub fn from_permit(permit: &Permit<T>, msg_type: Option<String>) -> Self {
         Self {
-            account_number: Uint128::zero(),
-            chain_id: chain_id.unwrap_or("secret-4".to_string()),
+            account_number: permit.account_number.unwrap_or(Uint128::zero()),
+            chain_id: permit.chain_id.clone().unwrap_or("secret-4".to_string()),
             fee: Default::default(),
-            memo: String::new(),
-            msgs: vec![item],
-            sequence: Uint128::zero(),
-        }
-    }
-
-    pub fn from_memo(memo: String, chain_id: Option<String>, msg: Option<TxMsg<T>>) -> Self {
-        Self {
-            account_number: Uint128::zero(),
-            chain_id: chain_id.unwrap_or("secret-4".to_string()),
-            fee: Default::default(),
-            memo,
-            msgs: match msg {
+            memo: permit.memo.clone().unwrap_or(String::new()),
+            msgs: match permit.params.clone() {
                 None => vec![],
-                Some(msg) => vec![msg]
+                Some(msg) => vec![TxMsg::new(msg, msg_type)]
             },
             sequence: Uint128::zero(),
         }
