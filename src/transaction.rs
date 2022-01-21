@@ -90,6 +90,20 @@ impl<T: Clone + Serialize> SignedTx<T> {
             sequence: Uint128::zero(),
         }
     }
+
+    pub fn from_memo(memo: String, chain_id: Option<String>, msg: Option<TxMsg<T>>) -> Self {
+        Self {
+            account_number: Uint128::zero(),
+            chain_id: chain_id.unwrap_or("secret-4".to_string()),
+            fee: Default::default(),
+            memo,
+            msgs: match msg {
+                None => vec![],
+                Some(msg) => vec![msg]
+            },
+            sequence: Uint128::zero(),
+        }
+    }
 }
 
 #[remain::sorted]

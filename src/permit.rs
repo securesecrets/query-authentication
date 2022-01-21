@@ -31,10 +31,14 @@ impl<T: Clone + Serialize> Permit<T> {
 
     /// Returns the permit signer
     pub fn validate(&self) -> StdResult<PubKeyValue> {
-        let pubkey = &self.signature.pub_key.value;
+        Permit::validate_signed_tx(&self.signature, &self.create_signed_tx())
+    }
+
+    pub fn validate_signed_tx(signature: &PermitSignature, signed_tx: &SignedTx<T>) -> StdResult<PubKeyValue> {
+        let pubkey = &signature.pub_key.value;
 
         // Validate signature
-        let signed_bytes = to_binary(&self.create_signed_tx())?;
+        let signed_bytes = to_binary(signed_tx)?;
         let signed_bytes_hash = sha_256(signed_bytes.as_slice());
         let secp256k1_msg = secp256k1::Message::from_slice(&signed_bytes_hash).map_err(|err| {
             StdError::generic_err(format!(
@@ -46,7 +50,7 @@ impl<T: Clone + Serialize> Permit<T> {
         let secp256k1_verifier = Secp256k1::verification_only();
 
         let secp256k1_signature =
-            secp256k1::Signature::from_compact(&self.signature.signature.0)
+            secp256k1::Signature::from_compact(&signature.signature.0)
                 .map_err(|err| StdError::generic_err(format!("Malformed signature: {:?}", err)))?;
         let secp256k1_pubkey = secp256k1::PublicKey::from_slice(pubkey.0.as_slice())
             .map_err(|err| StdError::generic_err(format!("Malformed pubkey: {:?}", err)))?;
