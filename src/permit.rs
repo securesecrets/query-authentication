@@ -1,6 +1,6 @@
 use crate::transaction::{PermitSignature, PubKeyValue, SignedTx, TxMsg};
 use bech32::FromBase32;
-use cosmwasm_std::{to_binary, Binary, CanonicalAddr, StdError, StdResult};
+use cosmwasm_std::{to_binary, Binary, CanonicalAddr, StdError, StdResult, Uint128};
 use schemars::JsonSchema;
 use secp256k1::Secp256k1;
 use secret_toolkit::crypto::sha_256;
@@ -15,8 +15,11 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub struct Permit<T: Clone + Serialize> {
     pub params: T,
-    pub chain_id: Option<String>,
     pub signature: PermitSignature,
+    pub account_number: Option<Uint128>,
+    pub chain_id: Option<String>,
+    pub sequence: Option<Uint128>,
+    pub memo: Option<String>,
 }
 
 pub fn bech32_to_canonical(addr: &str) -> CanonicalAddr {
@@ -25,16 +28,20 @@ pub fn bech32_to_canonical(addr: &str) -> CanonicalAddr {
 }
 
 impl<T: Clone + Serialize> Permit<T> {
-    pub fn create_signed_tx(&self) -> SignedTx<T> {
-        SignedTx::from_msg(TxMsg::from_permit(self), self.chain_id.clone())
+    pub fn create_signed_tx(&self, msg_type: Option<String>) -> SignedTx<T> {
+        SignedTx::from_permit(&self, msg_type)
     }
 
     /// Returns the permit signer
-    pub fn validate(&self) -> StdResult<PubKeyValue> {
-        let pubkey = &self.signature.pub_key.value;
+    pub fn validate(&self, msg_type: Option<String>) -> StdResult<PubKeyValue> {
+        Permit::validate_signed_tx(&self.signature, &self.create_signed_tx(msg_type))
+    }
+
+    pub fn validate_signed_tx(signature: &PermitSignature, signed_tx: &SignedTx<T>) -> StdResult<PubKeyValue> {
+        let pubkey = &signature.pub_key.value;
 
         // Validate signature
-        let signed_bytes = to_binary(&self.create_signed_tx())?;
+        let signed_bytes = to_binary(signed_tx)?;
         let signed_bytes_hash = sha_256(signed_bytes.as_slice());
         let secp256k1_msg = secp256k1::Message::from_slice(&signed_bytes_hash).map_err(|err| {
             StdError::generic_err(format!(
@@ -46,7 +53,7 @@ impl<T: Clone + Serialize> Permit<T> {
         let secp256k1_verifier = Secp256k1::verification_only();
 
         let secp256k1_signature =
-            secp256k1::Signature::from_compact(&self.signature.signature.0)
+            secp256k1::Signature::from_compact(&signature.signature.0)
                 .map_err(|err| StdError::generic_err(format!("Malformed signature: {:?}", err)))?;
         let secp256k1_pubkey = secp256k1::PublicKey::from_slice(pubkey.0.as_slice())
             .map_err(|err| StdError::generic_err(format!("Malformed pubkey: {:?}", err)))?;
@@ -115,13 +122,65 @@ mod signature_tests {
                 some_number: Uint128(10),
             },
             chain_id: Some("pulsar-1".to_string()),
+            sequence: None,
             signature: PermitSignature {
                 pub_key: PubKey::new(Binary::from_base64(PUBKEY).unwrap()),
                 signature: Binary::from_base64(SIGNED_TX).unwrap(),
             },
+            account_number: None,
+            memo: None
         };
 
-        let addr = permit.validate().unwrap();
+        let addr = permit.validate(None).unwrap();
         assert_eq!(addr.as_canonical(), bech32_to_canonical(ADDRESS));
+    }
+
+    const FILLERPERMITNAME: &str = "wasm/MsgExecuteContract";
+
+    type MemoPermit = Permit<FillerPermit>;
+
+    #[remain::sorted]
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+    #[serde(rename_all = "snake_case")]
+    struct FillerPermit {
+        pub coins: Vec<String>,
+        pub contract: String,
+        pub execute_msg: EmptyMsg,
+        pub sender: String,
+    }
+
+    #[remain::sorted]
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+    #[serde(rename_all = "snake_case")]
+    struct EmptyMsg {}
+
+    #[test]
+    fn memo_signature() {
+        let mut permit = MemoPermit {
+            params: FillerPermit {
+                coins: vec![],
+                sender: "".to_string(),
+                contract: "".to_string(),
+                execute_msg: EmptyMsg {}
+            },
+            chain_id: Some("bombay-12".to_string()),
+            sequence: Some(Uint128(0)),
+            signature: PermitSignature {
+                pub_key: PubKey::new(Binary::from_base64(
+                    "A50CTeVnMYyZGh7K4x4NtdfG1H1oicog6lEoPMi65IK2").unwrap()),
+                signature: Binary::from_base64(
+                    "75RcVHa/SW1WyjcFMkhZ63+D4ccxffchLvJPyURmtaskA8CPj+y6JSrpuRhxMC+1hdjSJC3c0IeJVbDIRapxPg==").unwrap(),
+            },
+            account_number: Some(Uint128(203289)),
+            memo: Some("b64Encoded".to_string())
+        };
+
+        let addr = permit.validate(Some(FILLERPERMITNAME.to_string())).unwrap();
+        assert_eq!(addr.as_canonical(), bech32_to_canonical("terra1m79yd3jh97vz4tqu0m8g49gfl7qmknhh23kac5"));
+        assert_ne!(addr.as_canonical(), bech32_to_canonical("secret102nasmxnxvwp5agc4lp3flc6s23335xm8g7gn9"));
+
+        permit.memo = Some("OtherMemo".to_string());
+
+        assert!(permit.validate(Some(FILLERPERMITNAME.to_string())).is_err())
     }
 }
