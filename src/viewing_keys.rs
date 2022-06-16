@@ -1,7 +1,5 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
 use sha2::{Digest, Sha256};
+use std::convert::TryInto;
 
 pub trait ViewingKey<const KEY_SIZE: usize>: ToString {
     fn compare_hashes(s1: &[u8], s2: &[u8]) -> bool {
@@ -52,7 +50,10 @@ mod viewing_key_tests {
         let hashed = pwd.hash();
 
         assert!(pwd.compare(&hashed));
-        assert!(Key::compare_hashes(&hashed, &Key("password".to_string()).hash()));
+        assert!(Key::compare_hashes(
+            &hashed,
+            &Key("password".to_string()).hash()
+        ));
 
         let wrong_pwd = Key("wrong_password".to_string());
         let wrong_hashed = wrong_pwd.hash();

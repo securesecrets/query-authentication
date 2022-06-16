@@ -1,8 +1,9 @@
 use crate::permit::Permit;
-use cosmwasm_std::{Api, Binary, CanonicalAddr, HumanAddr, StdResult, Uint128};
+use crate::sha_256;
+use bech32::{ToBase32, Variant};
+use cosmwasm_std::{Binary, CanonicalAddr, HumanAddr, StdError, StdResult, Uint128};
 use ripemd160::{Digest, Ripemd160};
 use schemars::JsonSchema;
-use secret_toolkit::crypto::sha_256;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -39,8 +40,17 @@ impl PubKeyValue {
         CanonicalAddr(Binary(hasher.finalize().to_vec()))
     }
 
-    pub fn as_humanaddr<A: Api>(&self, api: &A) -> StdResult<HumanAddr> {
-        api.human_address(&self.as_canonical())
+    pub fn as_humanaddr(&self, perfix: Option<&str>) -> StdResult<HumanAddr> {
+        let pre = match perfix {
+            None => "secret",
+            Some(p) => p,
+        };
+
+        let acc = self.as_canonical().as_slice().to_base32();
+        Ok(HumanAddr(
+            bech32::encode(pre, acc, Variant::Bech32)
+                .map_err(|err| StdError::generic_err(err.to_string()))?,
+        ))
     }
 }
 
@@ -56,7 +66,7 @@ impl<T: Clone + Serialize> TxMsg<T> {
     pub fn new(params: T, msg_type: Option<String>) -> Self {
         Self {
             r#type: msg_type.unwrap_or("signature_proof".to_string()),
-            value: params.clone(),
+            value: params,
         }
     }
 }
@@ -85,7 +95,7 @@ impl<T: Clone + Serialize> SignedTx<T> {
             account_number: permit.account_number.unwrap_or(Uint128::zero()),
             chain_id: permit.chain_id.clone().unwrap_or("secret-4".to_string()),
             fee: Default::default(),
-            memo: permit.memo.clone().unwrap_or(String::new()),
+            memo: permit.memo.clone().unwrap_or_default(),
             msgs: vec![TxMsg::new(permit.params.clone(), msg_type)],
             sequence: permit.sequence.unwrap_or(Uint128::zero()),
         }
