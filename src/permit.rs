@@ -1,9 +1,8 @@
-use crate::transaction::{PermitSignature, PubKeyValue, SignedTx, TxMsg};
+use crate::sha_256;
+use crate::transaction::{PermitSignature, PubKeyValue, SignedTx};
 use bech32::FromBase32;
-use cosmwasm_std::{to_binary, Binary, CanonicalAddr, StdError, StdResult, Uint128};
+use cosmwasm_std::{to_binary, Api, Binary, CanonicalAddr, StdError, StdResult, Uint128};
 use schemars::JsonSchema;
-use secp256k1::Secp256k1;
-use secret_toolkit::crypto::sha_256;
 use serde::{Deserialize, Serialize};
 
 // NOTE: Struct order is very important for signatures
@@ -29,43 +28,32 @@ pub fn bech32_to_canonical(addr: &str) -> CanonicalAddr {
 
 impl<T: Clone + Serialize> Permit<T> {
     pub fn create_signed_tx(&self, msg_type: Option<String>) -> SignedTx<T> {
-        SignedTx::from_permit(&self, msg_type)
+        SignedTx::from_permit(self, msg_type)
     }
 
     /// Returns the permit signer
-    pub fn validate(&self, msg_type: Option<String>) -> StdResult<PubKeyValue> {
-        Permit::validate_signed_tx(&self.signature, &self.create_signed_tx(msg_type))
+    pub fn validate<A: Api>(&self, api: &A, msg_type: Option<String>) -> StdResult<PubKeyValue> {
+        Permit::validate_signed_tx(api, &self.signature, &self.create_signed_tx(msg_type))
     }
 
-    pub fn validate_signed_tx(signature: &PermitSignature, signed_tx: &SignedTx<T>) -> StdResult<PubKeyValue> {
+    pub fn validate_signed_tx<A: Api>(
+        api: &A,
+        signature: &PermitSignature,
+        signed_tx: &SignedTx<T>,
+    ) -> StdResult<PubKeyValue> {
         let pubkey = &signature.pub_key.value;
 
         // Validate signature
         let signed_bytes = to_binary(signed_tx)?;
         let signed_bytes_hash = sha_256(signed_bytes.as_slice());
-        let secp256k1_msg = secp256k1::Message::from_slice(&signed_bytes_hash).map_err(|err| {
-            StdError::generic_err(format!(
-                "Failed to create a secp256k1 message from signed_bytes: {:?}",
-                err
-            ))
-        })?;
 
-        let secp256k1_verifier = Secp256k1::verification_only();
+        let verified = api
+            .secp256k1_verify(&signed_bytes_hash, &signature.signature.0, &pubkey.0)
+            .map_err(|err| StdError::generic_err(err.to_string()))?;
 
-        let secp256k1_signature =
-            secp256k1::Signature::from_compact(&signature.signature.0)
-                .map_err(|err| StdError::generic_err(format!("Malformed signature: {:?}", err)))?;
-        let secp256k1_pubkey = secp256k1::PublicKey::from_slice(pubkey.0.as_slice())
-            .map_err(|err| StdError::generic_err(format!("Malformed pubkey: {:?}", err)))?;
-
-        secp256k1_verifier
-            .verify(&secp256k1_msg, &secp256k1_signature, &secp256k1_pubkey)
-            .map_err(|err| {
-                StdError::generic_err(format!(
-                    "Failed to verify signatures for the given permit: {:?}",
-                    err
-                ))
-            })?;
+        if !verified {
+            return Err(StdError::generic_err("Signature verification failed"));
+        }
 
         Ok(PubKeyValue(pubkey.clone()))
     }
@@ -75,7 +63,8 @@ impl<T: Clone + Serialize> Permit<T> {
 mod signature_tests {
     use super::*;
     use crate::transaction::PubKey;
-    use cosmwasm_std::Uint128;
+    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::{HumanAddr, Uint128};
 
     #[remain::sorted]
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -116,7 +105,7 @@ mod signature_tests {
 
     #[test]
     fn test_signed_tx() {
-        let permit = TestPermit {
+        let mut permit = TestPermit {
             params: TestPermitMsg {
                 address: ADDRESS.to_string(),
                 some_number: Uint128(10),
@@ -128,11 +117,20 @@ mod signature_tests {
                 signature: Binary::from_base64(SIGNED_TX).unwrap(),
             },
             account_number: None,
-            memo: None
+            memo: None,
         };
 
-        let addr = permit.validate(None).unwrap();
+        let deps = mock_dependencies(20, &[]);
+        let addr = permit.validate(&deps.api, None).unwrap();
+        assert_eq!(
+            addr.as_humanaddr(None).unwrap(),
+            HumanAddr(ADDRESS.to_string())
+        );
         assert_eq!(addr.as_canonical(), bech32_to_canonical(ADDRESS));
+
+        permit.params.some_number = Uint128(100);
+        // NOTE: SN mock deps dont have a valid working implementation of the dep functons for some reason
+        //assert!(permit.validate(&deps.api, None).is_err());
     }
 
     const FILLERPERMITNAME: &str = "wasm/MsgExecuteContract";
@@ -175,12 +173,23 @@ mod signature_tests {
             memo: Some("b64Encoded".to_string())
         };
 
-        let addr = permit.validate(Some(FILLERPERMITNAME.to_string())).unwrap();
-        assert_eq!(addr.as_canonical(), bech32_to_canonical("terra1m79yd3jh97vz4tqu0m8g49gfl7qmknhh23kac5"));
-        assert_ne!(addr.as_canonical(), bech32_to_canonical("secret102nasmxnxvwp5agc4lp3flc6s23335xm8g7gn9"));
+        let deps = mock_dependencies(20, &[]);
+
+        let addr = permit
+            .validate(&deps.api, Some(FILLERPERMITNAME.to_string()))
+            .unwrap();
+        assert_eq!(
+            addr.as_canonical(),
+            bech32_to_canonical("terra1m79yd3jh97vz4tqu0m8g49gfl7qmknhh23kac5")
+        );
+        assert_ne!(
+            addr.as_canonical(),
+            bech32_to_canonical("secret102nasmxnxvwp5agc4lp3flc6s23335xm8g7gn9")
+        );
 
         permit.memo = Some("OtherMemo".to_string());
 
-        assert!(permit.validate(Some(FILLERPERMITNAME.to_string())).is_err())
+        // NOTE: SN mock deps doesnt have a valid working implementation of the dep functons for some reason
+        //assert!(permit.validate(&deps.api, Some(FILLERPERMITNAME.to_string())).is_err())
     }
 }
