@@ -2,7 +2,6 @@ use crate::sha_256;
 use crate::transaction::{PermitSignature, PubKeyValue, SignedTx};
 use bech32::FromBase32;
 use cosmwasm_std::{to_binary, Api, Binary, CanonicalAddr, StdError, StdResult, Uint128};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 // NOTE: Struct order is very important for signatures
@@ -10,7 +9,7 @@ use serde::{Deserialize, Serialize};
 // Signature idea taken from https://github.com/scrtlabs/secret-toolkit/blob/token-permits/packages/permit/src/funcs.rs
 
 /// Where the information will be stored
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct Permit<T: Clone + Serialize> {
     pub params: T,
@@ -64,7 +63,7 @@ mod signature_tests {
     use super::*;
     use crate::transaction::PubKey;
     use cosmwasm_std::testing::mock_dependencies;
-    use cosmwasm_std::{HumanAddr, Uint128};
+    use cosmwasm_std::{Addr, Uint128};
 
     #[remain::sorted]
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -108,7 +107,7 @@ mod signature_tests {
         let mut permit = TestPermit {
             params: TestPermitMsg {
                 address: ADDRESS.to_string(),
-                some_number: Uint128(10),
+                some_number: Uint128::new(10),
             },
             chain_id: Some("pulsar-1".to_string()),
             sequence: None,
@@ -120,15 +119,15 @@ mod signature_tests {
             memo: None,
         };
 
-        let deps = mock_dependencies(20, &[]);
+        let deps = mock_dependencies();
         let addr = permit.validate(&deps.api, None).unwrap();
         assert_eq!(
-            addr.as_humanaddr(None).unwrap(),
-            HumanAddr(ADDRESS.to_string())
+            addr.as_addr(None).unwrap(),
+            Addr::unchecked(ADDRESS.to_string())
         );
         assert_eq!(addr.as_canonical(), bech32_to_canonical(ADDRESS));
 
-        permit.params.some_number = Uint128(100);
+        permit.params.some_number = Uint128::new(100);
         // NOTE: SN mock deps dont have a valid working implementation of the dep functons for some reason
         //assert!(permit.validate(&deps.api, None).is_err());
     }
@@ -162,18 +161,18 @@ mod signature_tests {
                 execute_msg: EmptyMsg {}
             },
             chain_id: Some("bombay-12".to_string()),
-            sequence: Some(Uint128(0)),
+            sequence: Some(Uint128::new(0)),
             signature: PermitSignature {
                 pub_key: PubKey::new(Binary::from_base64(
                     "A50CTeVnMYyZGh7K4x4NtdfG1H1oicog6lEoPMi65IK2").unwrap()),
                 signature: Binary::from_base64(
                     "75RcVHa/SW1WyjcFMkhZ63+D4ccxffchLvJPyURmtaskA8CPj+y6JSrpuRhxMC+1hdjSJC3c0IeJVbDIRapxPg==").unwrap(),
             },
-            account_number: Some(Uint128(203289)),
+            account_number: Some(Uint128::new(203289)),
             memo: Some("b64Encoded".to_string())
         };
 
-        let deps = mock_dependencies(20, &[]);
+        let deps = mock_dependencies();
 
         let addr = permit
             .validate(&deps.api, Some(FILLERPERMITNAME.to_string()))

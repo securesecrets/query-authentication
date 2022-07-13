@@ -1,19 +1,18 @@
 use crate::permit::Permit;
 use crate::sha_256;
 use bech32::{ToBase32, Variant};
-use cosmwasm_std::{Binary, CanonicalAddr, HumanAddr, StdError, StdResult, Uint128};
+use cosmwasm_std::{Binary, CanonicalAddr, Addr, StdError, StdResult, Uint128};
 use ripemd160::{Digest, Ripemd160};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct PermitSignature {
     pub pub_key: PubKey,
     pub signature: Binary,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct PubKey {
     /// ignored, but must be "tendermint/PubKeySecp256k1" otherwise the verification will fail
@@ -40,14 +39,14 @@ impl PubKeyValue {
         CanonicalAddr(Binary(hasher.finalize().to_vec()))
     }
 
-    pub fn as_humanaddr(&self, perfix: Option<&str>) -> StdResult<HumanAddr> {
+    pub fn as_addr(&self, perfix: Option<&str>) -> StdResult<Addr> {
         let pre = match perfix {
             None => "secret",
             Some(p) => p,
         };
 
         let acc = self.as_canonical().as_slice().to_base32();
-        Ok(HumanAddr(
+        Ok(Addr::unchecked(
             bech32::encode(pre, acc, Variant::Bech32)
                 .map_err(|err| StdError::generic_err(err.to_string()))?,
         ))
@@ -55,7 +54,7 @@ impl PubKeyValue {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct TxMsg<T> {
     pub r#type: String,
@@ -72,7 +71,7 @@ impl<T: Clone + Serialize> TxMsg<T> {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct SignedTx<T> {
     /// ignored
@@ -103,7 +102,7 @@ impl<T: Clone + Serialize> SignedTx<T> {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct Fee {
     pub amount: Vec<Coin>,
@@ -114,13 +113,13 @@ impl Default for Fee {
     fn default() -> Self {
         Self {
             amount: vec![Coin::default()],
-            gas: Uint128(1),
+            gas: Uint128::new(1),
         }
     }
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct Coin {
     pub amount: Uint128,
