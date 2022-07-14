@@ -1,19 +1,18 @@
 use crate::permit::Permit;
 use crate::sha_256;
 use bech32::{ToBase32, Variant};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, CanonicalAddr, Addr, StdError, StdResult, Uint128};
 use ripemd160::{Digest, Ripemd160};
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct PermitSignature {
     pub pub_key: PubKey,
     pub signature: Binary,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct PubKey {
     /// ignored, but must be "tendermint/PubKeySecp256k1" otherwise the verification will fail
     pub r#type: String,
@@ -54,8 +53,7 @@ impl PubKeyValue {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct TxMsg<T> {
     pub r#type: String,
     pub value: T,
@@ -71,8 +69,7 @@ impl<T: Clone + Serialize> TxMsg<T> {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct SignedTx<T> {
     /// ignored
     pub account_number: Uint128,
@@ -102,8 +99,7 @@ impl<T: Clone + Serialize> SignedTx<T> {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct Fee {
     pub amount: Vec<Coin>,
     pub gas: Uint128,
@@ -119,8 +115,7 @@ impl Default for Fee {
 }
 
 #[remain::sorted]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct Coin {
     pub amount: Uint128,
     pub denom: String,
