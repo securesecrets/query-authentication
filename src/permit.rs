@@ -31,12 +31,12 @@ impl<T: Clone + Serialize> Permit<T> {
     }
 
     /// Returns the permit signer
-    pub fn validate<A: Api>(&self, api: &A, msg_type: Option<String>) -> StdResult<PubKeyValue> {
+    pub fn validate(&self, api: &dyn Api, msg_type: Option<String>) -> StdResult<PubKeyValue> {
         Permit::validate_signed_tx(api, &self.signature, &self.create_signed_tx(msg_type))
     }
 
-    pub fn validate_signed_tx<A: Api>(
-        api: &A,
+    pub fn validate_signed_tx(
+        api: &dyn Api,
         signature: &PermitSignature,
         signed_tx: &SignedTx<T>,
     ) -> StdResult<PubKeyValue> {

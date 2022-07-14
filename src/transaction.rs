@@ -2,9 +2,9 @@ use crate::permit::Permit;
 use crate::sha_256;
 use bech32::{ToBase32, Variant};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, CanonicalAddr, Addr, StdError, StdResult, Uint128};
+use cosmwasm_std::{Addr, Binary, CanonicalAddr, StdError, StdResult, Uint128};
 use ripemd160::{Digest, Ripemd160};
-use serde::{Serialize};
+use serde::Serialize;
 
 #[cw_serde]
 pub struct PermitSignature {
