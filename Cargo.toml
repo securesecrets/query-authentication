@@ -7,9 +7,10 @@ edition = "2018"
 
 [dependencies]
 cosmwasm-std = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
-cosmwasm-schema = "0.10.1"
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-snafu = { version = "0.6.3" }
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e" }
+schemars = "0.8.1"
+serde = { version = "1.0.103", default-features = false, features = ["derive", "alloc"] }
+thiserror = "1.0"
 remain = "0.2.2"
 ripemd160 = "0.9.1"
 secp256k1 = "0.20.3"
