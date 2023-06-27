@@ -2,6 +2,8 @@ use crate::sha_256;
 use crate::transaction::{PermitSignature, PubKeyValue, SignedTx};
 use bech32::FromBase32;
 use cosmwasm_std::{to_binary, Api, Binary, CanonicalAddr, StdError, StdResult, Uint128};
+use crypto::digest::Digest;
+use crypto::sha3::Sha3;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +45,8 @@ impl<T: Clone + Serialize> Permit<T> {
     ) -> StdResult<PubKeyValue> {
         let pubkey = &signature.pub_key.value;
 
-        // Validate signature
+        // Try validating Cosmos signature
+
         let signed_bytes = to_binary(signed_tx)?;
         let signed_bytes_hash = sha_256(signed_bytes.as_slice());
 
@@ -51,12 +54,45 @@ impl<T: Clone + Serialize> Permit<T> {
             .secp256k1_verify(&signed_bytes_hash, &signature.signature.0, &pubkey.0)
             .map_err(|err| StdError::generic_err(err.to_string()))?;
 
-        if !verified {
-            return Err(StdError::generic_err("Signature verification failed"));
+        if verified {
+            return Ok(PubKeyValue(pubkey.clone()));
         }
 
-        Ok(PubKeyValue(pubkey.clone()))
+        // Try validating Ethereum signature
+
+        let mut signed_bytes = vec![];
+        signed_bytes.extend_from_slice(b"\x19Ethereum Signed Message:\n");
+
+        // TODO: figure out how to serialize signed_tx as a JSON with an indent of 4
+        let signed_tx_pretty_amino_json = to_binary_pretty(signed_tx)?;
+
+        signed_bytes.extend_from_slice(signed_tx_pretty_amino_json.len().to_string().as_bytes());
+        signed_bytes.extend_from_slice(signed_tx_pretty_amino_json.as_slice());
+
+        let mut hasher = Sha3::keccak256();
+
+        hasher.input(&signed_bytes);
+
+        let mut signed_bytes_hash = [0u8; 32];
+        hasher.result(&mut signed_bytes_hash);
+
+        let verified = api
+            .secp256k1_verify(&signed_bytes_hash, &signature.signature.0, &pubkey.0)
+            .map_err(|err| StdError::generic_err(err.to_string()))?;
+
+        if verified {
+            return Ok(PubKeyValue(pubkey.clone()));
+        }
+
+        return Err(StdError::generic_err("Signature verification failed"));
     }
+}
+
+fn to_binary_pretty<T>(data: &T) -> StdResult<Binary>
+where
+    T: Serialize + ?Sized,
+{
+    todo!();
 }
 
 #[cfg(test)]
