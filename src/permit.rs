@@ -1,7 +1,7 @@
 use crate::sha_256;
 use crate::transaction::{PermitSignature, PubKeyValue, SignedTx};
 use bech32::FromBase32;
-use cosmwasm_std::{to_binary, Api, Binary, CanonicalAddr, StdError, StdResult, Uint128};
+use cosmwasm_std::{to_binary, to_vec, Api, Binary, CanonicalAddr, StdError, StdResult, Uint128};
 use crypto::digest::Digest;
 use crypto::sha3::Sha3;
 use schemars::JsonSchema;
@@ -63,7 +63,6 @@ impl<T: Clone + Serialize> Permit<T> {
         let mut signed_bytes = vec![];
         signed_bytes.extend_from_slice(b"\x19Ethereum Signed Message:\n");
 
-        // TODO: figure out how to serialize signed_tx as a JSON with an indent of 4
         let signed_tx_pretty_amino_json = to_binary_pretty(signed_tx)?;
 
         signed_bytes.extend_from_slice(signed_tx_pretty_amino_json.len().to_string().as_bytes());
@@ -92,7 +91,18 @@ fn to_binary_pretty<T>(data: &T) -> StdResult<Binary>
 where
     T: Serialize + ?Sized,
 {
-    todo!();
+    // Serialize the data to a compact JSON string
+    let ugly_json = serde_json_wasm::to_string(data).unwrap();
+
+    // Customize Formatter to use 4 spaces for indents
+    let mut formatter = jsonxf::Formatter::pretty_printer();
+    formatter.indent = String::from("    ");
+
+    // Transform the JSON string to be pretty
+    let pretty_json = formatter.format(&ugly_json).unwrap();
+
+    // Serialize the JSON string to a JSON byte vector
+    to_vec(&pretty_json).map(Binary)
 }
 
 #[cfg(test)]
@@ -167,6 +177,19 @@ mod signature_tests {
         permit.params.some_number = Uint128(100);
         // NOTE: SN mock deps dont have a valid working implementation of the dep functons for some reason
         //assert!(permit.validate(&deps.api, None).is_err());
+
+        // Serialize the data to a compact JSON string
+        let ugly_json = serde_json_wasm::to_string(&permit).unwrap();
+
+        // Customize Formatter to use 4 spaces for indents
+        let mut formatter = jsonxf::Formatter::pretty_printer();
+        formatter.indent = String::from("    ");
+
+        // Transform the JSON string to be pretty
+        let pretty_json = formatter.format(&ugly_json).unwrap();
+
+        // Print the JSON string
+        println!("{}", pretty_json);
     }
 
     const FILLERPERMITNAME: &str = "wasm/MsgExecuteContract";
