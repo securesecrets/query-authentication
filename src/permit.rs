@@ -1,7 +1,7 @@
 use crate::sha_256;
 use crate::transaction::{PermitSignature, PubKeyValue, SignedTx};
 use bech32::FromBase32;
-use cosmwasm_std::{to_binary, to_vec, Api, Binary, CanonicalAddr, StdError, StdResult, Uint128};
+use cosmwasm_std::{to_binary, Api, Binary, CanonicalAddr, StdError, StdResult, Uint128};
 use crypto::digest::Digest;
 use crypto::sha3::Sha3;
 use schemars::JsonSchema;
@@ -91,18 +91,10 @@ fn to_binary_pretty<T>(data: &T) -> StdResult<Binary>
 where
     T: Serialize + ?Sized,
 {
-    // Serialize the data to a compact JSON string
-    let ugly_json = serde_json_wasm::to_string(data).unwrap();
-
-    // Customize Formatter to use 4 spaces for indents
-    let mut formatter = jsonxf::Formatter::pretty_printer();
-    formatter.indent = String::from("    ");
-
-    // Transform the JSON string to be pretty
-    let pretty_json = formatter.format(&ugly_json).unwrap();
-
-    // Serialize the JSON string to a JSON byte vector
-    to_vec(&pretty_json).map(Binary)
+    const INDENT: &[u8; 4] = b"    ";
+    super::pretty::to_vec_pretty(data, INDENT)
+        .map_err(|e| StdError::serialize_err(std::any::type_name::<T>(), e))
+        .map(Binary)
 }
 
 #[cfg(test)]
@@ -177,19 +169,50 @@ mod signature_tests {
         permit.params.some_number = Uint128(100);
         // NOTE: SN mock deps dont have a valid working implementation of the dep functons for some reason
         //assert!(permit.validate(&deps.api, None).is_err());
+    }
 
-        // Serialize the data to a compact JSON string
-        let ugly_json = serde_json_wasm::to_string(&permit).unwrap();
+    #[test]
+    fn test_pretty_print() {
+        let permit = TestPermit {
+            params: TestPermitMsg {
+                address: ADDRESS.to_string(),
+                some_number: Uint128(10),
+            },
+            chain_id: Some("pulsar-1".to_string()),
+            sequence: None,
+            signature: PermitSignature {
+                pub_key: PubKey::new(Binary::from_base64(PUBKEY).unwrap()),
+                signature: Binary::from_base64(SIGNED_TX).unwrap(),
+            },
+            account_number: None,
+            memo: None,
+        };
 
-        // Customize Formatter to use 4 spaces for indents
-        let mut formatter = jsonxf::Formatter::pretty_printer();
-        formatter.indent = String::from("    ");
+        const INDENT: &[u8; 4] = b"    ";
+        let pretty_json = crate::pretty::to_string_pretty(&permit, INDENT).unwrap();
 
-        // Transform the JSON string to be pretty
-        let pretty_json = formatter.format(&ugly_json).unwrap();
-
-        // Print the JSON string
         println!("{}", pretty_json);
+
+        assert_eq!(
+            pretty_json,
+            r#"{
+    "params":{
+        "address":"secret102nasmxnxvwp5agc4lp3flc6s23335xm8g7gn9",
+        "some_number":"10"
+    },
+    "signature":{
+        "pub_key":{
+            "type":"tendermint/PubKeySecp256k1",
+            "value":"A0qzJ3s16OKUfn1KFyh533vBnBOQIT0jm+R/FBobJCfa"
+        },
+        "signature":"4pZtghyHKHHmwiGNC5JD8JxCJiO+44j6GqaLPc19Q7lt85tr0IRZHYcnc0pkokIds8otxU9rcuvPXb0+etLyVA=="
+    },
+    "account_number":null,
+    "chain_id":"pulsar-1",
+    "sequence":null,
+    "memo":null
+}"#
+        )
     }
 
     const FILLERPERMITNAME: &str = "wasm/MsgExecuteContract";
