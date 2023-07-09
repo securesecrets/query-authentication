@@ -81,7 +81,7 @@ impl<T: Clone + Serialize> Permit<T> {
             return Ok(PubKeyValue(pubkey.clone()));
         }
 
-        return Err(StdError::generic_err("Signature verification failed"));
+        Err(StdError::generic_err("Signature verification failed"))
     }
 }
 
