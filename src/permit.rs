@@ -3,8 +3,8 @@ use crate::transaction::{PermitSignature, PubKeyValue, SignedTx};
 use bech32::FromBase32;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{to_binary, Api, Binary, CanonicalAddr, StdError, StdResult, Uint128};
-use sha3::{Digest, Keccak256};
 use serde::Serialize;
+use sha3::{Digest, Keccak256};
 
 // NOTE: Struct order is very important for signatures
 
@@ -47,12 +47,14 @@ impl<T: Clone + Serialize> Permit<T> {
         let signed_bytes = to_binary(signed_tx)?;
         let signed_bytes_hash = sha_256(signed_bytes.as_slice());
 
-        let verified = api
-            .secp256k1_verify(&signed_bytes_hash, &signature.signature.0, &pubkey.0)
-            .map_err(|err| StdError::generic_err(err.to_string()))?;
+        let verification_result =
+            api.secp256k1_verify(&signed_bytes_hash, &signature.signature.0, &pubkey.0);
+        // .map_err(|err| StdError::generic_err(err.to_string()))?;
 
-        if verified {
-            return Ok(PubKeyValue(pubkey.clone()));
+        if let Ok(verified) = verification_result {
+            if verified {
+                return Ok(PubKeyValue(pubkey.clone()));
+            }
         }
 
         // Try validating Ethereum signature
