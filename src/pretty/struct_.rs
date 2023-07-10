@@ -33,7 +33,7 @@ impl<'serializer, 'indent: 'serializer> ser::SerializeStruct
         self.ser.indent()?;
         self.ser.buf.push(b'"');
         self.ser.buf.extend_from_slice(key.as_bytes());
-        self.ser.buf.extend_from_slice(b"\":");
+        self.ser.buf.extend_from_slice(b"\": ");
 
         value.serialize(&mut *self.ser)?;
 
@@ -71,7 +71,7 @@ impl<'serializer, 'indent: 'serializer> ser::SerializeStructVariant
 
         self.ser.buf.push(b'"');
         self.ser.buf.extend_from_slice(key.as_bytes());
-        self.ser.buf.extend_from_slice(b"\":");
+        self.ser.buf.extend_from_slice(b"\": ");
 
         value.serialize(&mut *self.ser)?;
 

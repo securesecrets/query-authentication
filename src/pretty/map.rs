@@ -43,7 +43,7 @@ impl<'serializer, 'indent: 'serializer> ser::SerializeMap for SerializeMap<'seri
 
         // Use key serializer to unsure key type validity.
         key.serialize(MapKeySerializer { ser: self.ser })?;
-        self.ser.buf.extend_from_slice(b":");
+        self.ser.buf.extend_from_slice(b": ");
         Ok(())
     }
 

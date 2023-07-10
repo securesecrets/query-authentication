@@ -447,7 +447,7 @@ impl<'serializer, 'indent: 'serializer> ser::Serializer for &'serializer mut Ser
         self.indent()?;
         self.buf.push(b'"');
         self.buf.extend_from_slice(variant.as_bytes());
-        self.buf.extend_from_slice(b"\":{");
+        self.buf.extend_from_slice(b"\": {");
         self.current_indent += 1;
 
         Ok(SerializeStruct::new(self))
@@ -655,7 +655,7 @@ mod tests {
         assert_eq!(
             to_string_pretty(&Led { led: true }, INDENT).unwrap(),
             r#"{
-  "led":true
+  "led": true
 }"#
         );
     }
@@ -670,28 +670,28 @@ mod tests {
         assert_eq!(
             to_string_pretty(&Temperature { temperature: 127 }, INDENT).unwrap(),
             r#"{
-  "temperature":127
+  "temperature": 127
 }"#
         );
 
         assert_eq!(
             to_string_pretty(&Temperature { temperature: 20 }, INDENT).unwrap(),
             r#"{
-  "temperature":20
+  "temperature": 20
 }"#
         );
 
         assert_eq!(
             to_string_pretty(&Temperature { temperature: -17 }, INDENT).unwrap(),
             r#"{
-  "temperature":-17
+  "temperature": -17
 }"#
         );
 
         assert_eq!(
             to_string_pretty(&Temperature { temperature: -128 }, INDENT).unwrap(),
             r#"{
-  "temperature":-128
+  "temperature": -128
 }"#
         );
     }
@@ -712,7 +712,7 @@ mod tests {
             )
             .unwrap(),
             r#"{
-  "description":"An ambient temperature sensor"
+  "description": "An ambient temperature sensor"
 }"#
         );
 
@@ -720,7 +720,7 @@ mod tests {
         assert_eq!(
             to_string_pretty(&Property { description: None }, INDENT).unwrap(),
             r#"{
-  "description":null
+  "description": null
 }"#
         );
     }
@@ -735,7 +735,7 @@ mod tests {
         assert_eq!(
             to_string_pretty(&Temperature { temperature: 20 }, INDENT).unwrap(),
             r#"{
-  "temperature":20
+  "temperature": 20
 }"#
         );
     }
@@ -756,8 +756,8 @@ mod tests {
         assert_eq!(
             to_string_pretty(&Tuple { a: true, b: false }, INDENT).unwrap(),
             r#"{
-  "a":true,
-  "b":false
+  "a": true,
+  "b": false
 }"#
         );
     }
@@ -787,7 +787,7 @@ mod tests {
         assert_eq!(
             to_string_pretty(&a, INDENT).unwrap(),
             r#"{
-  "A":54
+  "A": 54
 }"#
         );
     }
@@ -803,9 +803,9 @@ mod tests {
         assert_eq!(
             to_string_pretty(&a, INDENT).unwrap(),
             r#"{
-  "A":{
-    "x":54,
-    "y":720
+  "A": {
+    "x": 54,
+    "y": 720
   }
 }"#
         );
