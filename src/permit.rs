@@ -3,8 +3,7 @@ use crate::transaction::{PermitSignature, PubKeyValue, SignedTx};
 use bech32::FromBase32;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{to_binary, Api, Binary, CanonicalAddr, StdError, StdResult, Uint128};
-use crypto::digest::Digest;
-use crypto::sha3::Sha3;
+use sha3::{Digest, Keccak256};
 use serde::Serialize;
 
 // NOTE: Struct order is very important for signatures
@@ -66,12 +65,11 @@ impl<T: Clone + Serialize> Permit<T> {
         signed_bytes.extend_from_slice(signed_tx_pretty_amino_json.len().to_string().as_bytes());
         signed_bytes.extend_from_slice(signed_tx_pretty_amino_json.as_slice());
 
-        let mut hasher = Sha3::keccak256();
+        let mut hasher = Keccak256::new();
 
-        hasher.input(&signed_bytes);
+        hasher.update(&signed_bytes);
 
-        let mut signed_bytes_hash = [0u8; 32];
-        hasher.result(&mut signed_bytes_hash);
+        let signed_bytes_hash = hasher.finalize();
 
         let verified = api
             .secp256k1_verify(&signed_bytes_hash, &signature.signature.0, &pubkey.0)
